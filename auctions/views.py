@@ -3,6 +3,8 @@ from django.db import IntegrityError
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse
+from  decimal import Decimal
+from django.db.models import Max
 
 from .models import User, auction_listings, comments, bids, watchlists
 
@@ -69,10 +71,17 @@ def register(request):
 def listing(request, listing_id):
     mylisting = auction_listings.objects.get(id=listing_id)
     mycomments = comments.objects.filter(listing__id=listing_id)
+    bid = bids.objects.filter(listing__id=listing_id)
+    max = bids.objects.filter(listing__id=listing_id).aggregate(Max('bid'))
+    max = max['bid__max']
+    mycount = bids.objects.filter(listing__id=listing_id).count()
     return render(request, "auctions/listing.html", {
         "listing" : mylisting,
         "comments" : mycomments,
-        "category" : mylisting.category
+        "category" : mylisting.category,
+        "bids" : bid,
+        "maxbid" : max,
+        "count" : mycount
 
     })
 
@@ -99,6 +108,7 @@ def watchlist(request):
     currentuser=request.user
     mywatchlist = watchlists.objects.filter(user=currentuser)
     return render(request, "auctions/watchlist.html", {
+        "user" : currentuser,
         "watchlist" : mywatchlist
 
     })
@@ -113,3 +123,20 @@ def addtowatchlist(request, listing_id):
     
 def categories(request):
     pass
+
+def bid(request, listing_id):
+    if request.method == "POST":
+        currentuser=request.user
+        amount=request.POST["bid"]
+        listing = auction_listings.objects.get(id=listing_id)
+        max = bids.objects.filter(listing__id=listing_id).aggregate(Max('bid'))
+        max = max['bid__max']
+        price = listing.price
+        if not max:
+            max = price
+        if Decimal(amount) > Decimal(price) and Decimal(amount) > max:
+                newbid = bids(bid=Decimal(amount),user=currentuser, listing=listing)
+                listing.price = Decimal(amount)
+                listing.save()
+                newbid.save()
+    return HttpResponseRedirect(reverse("listing", args=(listing_id,)))

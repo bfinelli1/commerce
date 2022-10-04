@@ -34,6 +34,7 @@ class comments(models.Model):
 
 class bids(models.Model):
     bid = models.DecimalField(max_digits=10, decimal_places=2)
+    user=models.ForeignKey(User, on_delete=models.DO_NOTHING, null=True)
     listing = models.ForeignKey(auction_listings, on_delete=models.DO_NOTHING)
 
 class watchlists(models.Model):

@@ -117,8 +117,24 @@ def addtowatchlist(request, listing_id):
     if request.method =="POST":
         currentuser=request.user
         listing = auction_listings.objects.get(id=listing_id)
+        #bids.objects.filter(listing__id=listing_id).count()
         newwatch = watchlists(user=currentuser, listing=listing)
-        newwatch.save()
+        if watchlists.objects.filter(listing__id=listing_id, user=currentuser).count() >0:
+            pass    
+        else:
+            newwatch.save()
+    return HttpResponseRedirect(reverse("listing", args=(listing_id,)))
+
+def removefromwatchlist(request, listing_id):
+    if request.method == "POST":
+        currentuser=request.user
+        listing = auction_listings.objects.get(id=listing_id)
+        try:
+            watch = watchlists.objects.get(user=currentuser, listing=listing)
+        except watchlists.DoesNotExist:
+            watch = None
+        if watch:
+            watch.delete()
     return HttpResponseRedirect(reverse("listing", args=(listing_id,)))
     
 def categories(request):

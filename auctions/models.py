@@ -49,3 +49,9 @@ class watchlists(models.Model):
 #from auctions.models import *
 #a = auction_listings(title="broom", price=100.99)
 #a.save()
+
+#git status
+#git add -A
+#get reset db.sqlite3
+#git commit -m "comment"
+#git push -u origin main

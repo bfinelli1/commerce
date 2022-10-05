@@ -5,33 +5,56 @@
 
     
 
-        
+        {% if listing.img_url != "" %}
         <img src="{{ listing.img_url }}" width="400" 
         height="400"/>
         <br>
+        {% endif %}
+        {% if category %}
         Category:<br>
-        {{category}}
+        <a href="{% url 'categorypage' category %}">
+            {{ category }}
+        </a>
+        {% endif %}
         <br><br>
 
         <h3>${{listing.price}}</h3>
-
-        {% if user.is_authenticated %}
-        Bid:
-        <form action="{% url 'bid' listing.id %}" method="post">
-            {% csrf_token %}
-            <input type="number" id="bid" min="0.00" max="10000.00" step="0.01" name="bid"  />
-            <input type="submit" value="submit">
-        </form>
+        {% if open %}
+            {% if user.is_authenticated %}
+            Bid:
+            <form action="{% url 'bid' listing.id %}" method="post">
+                {% csrf_token %}
+                <input type="number" id="bid" min="0.00" max="10000.00" step="0.01" name="bid"  />
+                <input type="submit" value="submit">
+            </form>
+            {% else %}
+                sign in to bid on item
+            {% endif %}
         {% else %}
-            sign in to bid on item
+            <br><h2>Auction Closed by owner, winner is {{maxbidder}}</h2><br>
+            {% if maxbidder == current.username %}
+                <br><h2>you won!</h2><br>
+            {% else %}
+                <br><h2>you didnt win</h2>
+            {% endif %}
         {% endif %}
+
+
+        {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
 
         {% for bid in bids %}
             {{bid.bid}} submitted by {{bid.user.username}}<br>
-            
         {% empty %}
         <li> no bids yet </li>
         {% endfor %}
+
         {{count}} bid(s) so far
         
         <br><br>
@@ -70,6 +93,18 @@
         sign in to leave a comment
     {% endif %}
     
-    
+    listing created by {{creator}} <br>
+    {% if created == True %}
+        you, {{current}}, created this page
+    {% else %}
+        you didn't create this page, {{creator}} did
+    {% endif %} 
+
+    {% if canclose == True %}
+        <form action="{% url 'close' listing.id %}" method="post">
+            {% csrf_token %}
+            <button name="close" value="submit">Close Auction</button>
+        </form>
+    {% endif %} 
 
 {% endblock %}

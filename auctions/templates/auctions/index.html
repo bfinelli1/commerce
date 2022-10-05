@@ -11,9 +11,11 @@
             <br>
             {{ listing.description}}
             <br>
-            <img src="{{ listing.img_url }}" width="100" height="100"/>
-            
+            {% if listing.img_url != "" %}
+                <img src="{{ listing.img_url }}" width="100" height="100"/>
+            {% endif %}
         </li>
+        <br><br>
     {% empty %}
         <li> empty </li>
     {% endfor %}

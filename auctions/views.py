@@ -5,6 +5,7 @@ from django.shortcuts import render
 from django.urls import reverse
 from  decimal import Decimal
 from django.db.models import Max
+from django.contrib import messages
 
 from .models import User, auction_listings, comments, bids, watchlists
 
@@ -70,18 +71,40 @@ def register(request):
 
 def listing(request, listing_id):
     mylisting = auction_listings.objects.get(id=listing_id)
+    creator = mylisting.creator
     mycomments = comments.objects.filter(listing__id=listing_id)
     bid = bids.objects.filter(listing__id=listing_id)
     max = bids.objects.filter(listing__id=listing_id).aggregate(Max('bid'))
     max = max['bid__max']
+    
     mycount = bids.objects.filter(listing__id=listing_id).count()
+    created=False
+    canclose = False
+    if creator == request.user:
+        created = True
+        if mylisting.open:
+            canclose=True
+    maxbidder=None
+    if max:
+        maxbid = bids.objects.get(bid=max)
+        maxbidder = maxbid.user.username
+    
+
+
     return render(request, "auctions/listing.html", {
         "listing" : mylisting,
         "comments" : mycomments,
         "category" : mylisting.category,
         "bids" : bid,
         "maxbid" : max,
-        "count" : mycount
+        "count" : mycount,
+        "creator" : creator,
+        "created" : created,
+        "current" : request.user,
+        "canclose" : canclose,
+        "open" : mylisting.open,
+        "maxbidder" : maxbidder,
+        "youwon" : maxbidder==request.user
 
     })
 
@@ -92,7 +115,7 @@ def newlisting(request):
         b = request.POST["bid"]
         url = request.POST["url"]
         cat = request.POST["category"]
-        mynewlisting= auction_listings(title=t, description=desc, price=b, img_url=url, category=cat)
+        mynewlisting= auction_listings(title=t, description=desc, price=b, img_url=url, category=cat, creator=request.user)
         mynewlisting.save()
     return render(request, "auctions/newlisting.html")
 
@@ -138,7 +161,23 @@ def removefromwatchlist(request, listing_id):
     return HttpResponseRedirect(reverse("listing", args=(listing_id,)))
     
 def categories(request):
-    pass
+    categorylist = auction_listings.objects.values('category').distinct()
+
+    #flatlist = categorylist.values_list(flat=True)
+    flatlist = [cat['category'] for cat in categorylist]
+    for i in flatlist:
+        if i == "":
+            flatlist.remove(i)
+    return render(request, "auctions/categories.html", {
+        "categories": flatlist
+    })
+
+def categorypage(request, cat):
+    listings = auction_listings.objects.filter(category=cat)
+    return render(request, "auctions/categorypage.html", {
+        "listings": listings,
+        "category": cat
+    })
 
 def bid(request, listing_id):
     if request.method == "POST":
@@ -151,8 +190,16 @@ def bid(request, listing_id):
         if not max:
             max = price
         if Decimal(amount) > Decimal(price) and Decimal(amount) > max:
-                newbid = bids(bid=Decimal(amount),user=currentuser, listing=listing)
-                listing.price = Decimal(amount)
-                listing.save()
-                newbid.save()
+            newbid = bids(bid=Decimal(amount),user=currentuser, listing=listing)
+            listing.price = Decimal(amount)
+            listing.save()
+            newbid.save()
+        else:   
+            messages.warning(request, 'Bid is too low')
+    return HttpResponseRedirect(reverse("listing", args=(listing_id,)))
+
+def close(request, listing_id):
+    listing = auction_listings.objects.get(id=listing_id)
+    listing.open = False
+    listing.save()
     return HttpResponseRedirect(reverse("listing", args=(listing_id,)))
